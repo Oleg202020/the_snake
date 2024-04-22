@@ -79,7 +79,7 @@ class GameObject:
         в дочерних классах и должен определять, как объект будет
         отрисовываться на экране.
         """
-        raise NotImplementedError('<реализация только в дочерних классах>')
+        raise NotImplementedError('Реализация только в дочерних классах')
 
     def draw_one(self, position, color=None):
         """Метод отрисовывает яблоко на экране, а также голову змейки
@@ -87,7 +87,7 @@ class GameObject:
         """
         color = color or self.body_color
         if color is None:
-            return
+            raise ValueError('Цвет для отображения не был передан')
         rect = pg.Rect(position, (GRID_SIZE, GRID_SIZE))
         pg.draw.rect(screen, color, rect)
         pg.draw.rect(screen, BORDER_COLOR, rect, 1)
@@ -98,19 +98,19 @@ class Apple(GameObject):
     отрисовки яблока
     """
 
-    def __init__(self, namber_of_snake_body=CENTER, body_color=APPLE_COLOR):
+    def __init__(self, occupied_positions=[CENTER], body_color=APPLE_COLOR):
         """Метод инициализирует базовые атрибуты объекта (позиция и цвет)"""
         super().__init__(body_color=body_color)
-        self.randomize_position(namber_of_snake_body)
+        self.randomize_position(occupied_positions)
 
-    def randomize_position(self, namber_of_snake_body):
+    def randomize_position(self, occupied_positions):
         """Метод устанавливает случайное положение яблока
         на игровом поле — задаёт атрибуту position новое значение
         """
         while True:
             self.position = [randint(0, GRID_WIDTH - 1) * GRID_SIZE,
                              randint(0, GRID_HEIGHT - 1) * GRID_SIZE]
-            if self.position not in namber_of_snake_body:
+            if self.position not in occupied_positions:
                 break
 
     def draw(self):
@@ -134,15 +134,6 @@ class Snake(GameObject):
         """Метод отрисовывает змейку на экране, затирая след"""
         # Отрисовка головы змейки
         self.draw_one(self.get_head_position(), self.body_color)
-        """
-        После модификации когда, в определённых условиях, при приближении
-        головы к телу, в теле появляются дыры, думаю
-        этот кусок позволил бы избежать данной ошибки.
-        for position in self.positions[:-1]:
-            rect = (pygame.Rect(position, (GRID_SIZE, GRID_SIZE)))
-            pygame.draw.rect(screen, self.body_color, rect)
-            pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
-        """
         # Затирание последнего сегмента
         if self.last:
             last_rect = pg.Rect(self.last, (GRID_SIZE, GRID_SIZE))
@@ -170,26 +161,22 @@ class Snake(GameObject):
                                   * GRID_SIZE) % SCREEN_WIDTH),
                                   ((head_position[1] + self.direction[1]
                                    * GRID_SIZE) % SCREEN_HEIGHT)]
-        if self.length == len(self.positions):
-            self.last = self.positions[-1]
-            self.positions.pop()  # Удаляем сегмент
-            self.positions.insert(0, self.new_head_position)
+        self.last = self.positions.pop()  # Удаляем сегмент
+        self.positions.insert(0, self.new_head_position)
 
     def eat_aple(self):
         """Метод позволит обновить длину змеи, после поедания яблока"""
-        self.positions.insert(0, self.new_head_position)  # Добавляем сегмент
-        self.namber_of_snake_body = self.positions
+        self.positions.append(self.last)
+        self.last = None
 
     def reset(self):
         """Метод сбрасывает змейку в начальное состояние после
         столкновения с собой.
         """
-        self.length = 1
         self.positions = [CENTER]
         self.direction = choice([RIGHT, LEFT, UP, DOWN])
         self.last = None
         self.next_direction = None
-        self.namber_of_snake_body = self.positions
 
 
 def main():
@@ -203,14 +190,13 @@ def main():
         clock.tick(SPEED)
         handle_keys(litle_snake)
         litle_snake.update_direction()
+        litle_snake.move()
         if random_apple.position == litle_snake.get_head_position():
             litle_snake.eat_aple()
-            litle_snake.length += 1
             random_apple.randomize_position(litle_snake.positions)
         elif litle_snake.get_head_position() in litle_snake.positions[3:]:
             litle_snake.reset()
             screen.fill(BOARD_BACKGROUND_COLOR)
-        litle_snake.move()
         random_apple.draw()
         litle_snake.draw()
         pg.display.update()
